@@ -21,12 +21,15 @@ fn main() -> Result<()> {
         .with_max_level(tracing::Level::DEBUG)
         .with_ansi(false)
         .init();
+
     // Since the requirement is for a single argument,
     // no need for clap!
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
+    // Gracefully handle any extra arguments and flags
+    let Some(path) = args.get(1).map(Into::<PathBuf>::into) else {
         error!("Usage: {} <path>", args[0]);
         return Err(PaymentEngineError::Unknown);
-    }
+    };
+
     Ok(())
 }
