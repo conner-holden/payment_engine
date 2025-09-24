@@ -81,6 +81,7 @@ impl Account {
     }
 }
 
+// AI: asked Claude to generate all test cases. RIP TDD.
 #[cfg(test)]
 mod tests {
     use super::*;

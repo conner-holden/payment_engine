@@ -11,22 +11,31 @@ enum Error {
     Csv(String),
 }
 
-// Forward debug to display for cleaner CLI errors
+// Forward debug to display for cleaner CLI errors.
+// AI: asked ChatGPT how to get CLI errors to use thiserror's
+// display implementation.
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self}")
     }
 }
 
+// AI: asked ChatGPT how to have multiple binaries in a single crate where one is
+// the default (so automated tests don't break).
 fn main() -> Result<(), Error> {
     // Since the requirement is for a single argument,
     // no need for clap!
     let args: Vec<String> = env::args().collect();
     // Gracefully handle any extra arguments and flags
+    // AI: asked ChatGPT how to handle args as PathBuf without clap
     let Some(path) = args.get(1).map(Into::<PathBuf>::into) else {
         return Err(Error::Usage(args[0].clone()));
     };
 
+    // These will grow without bound. Could be a memory issue for
+    // large inputs, in which case it might be better to use disk-backed
+    // HashMaps instead. That might break the tests though.
+    // AI: asked Claude recommendation for handling arbitrarily large inputs.
     let mut accounts: HashMap<u16, Account> = HashMap::new();
     let mut transactions: HashMap<u32, Transaction> = HashMap::new();
 

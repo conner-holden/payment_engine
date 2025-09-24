@@ -12,6 +12,7 @@ const DECIMALS: u32 = 4;
 const MAX_CLIENT_ID: u16 = 300;
 const MIN_TX: usize = 5_000;
 const MAX_TX: usize = 10_000;
+// AI: asked ChatGPT the method for exponentiation.
 const MIN_AMOUNT: i64 = -10_000 * 10_i64.pow(DECIMALS); // -$10,000
 const MAX_AMOUNT: i64 = 10_000 * 10_i64.pow(DECIMALS); // $10,000
 
@@ -25,6 +26,7 @@ fn main() {
 
     let total_tx = rng.random_range(MIN_TX..=MAX_TX);
     for i in 1..total_tx {
+        // AI: asked ChatGPT how to randomize enum variant selection.
         let tx_type = tx_types.choose(&mut rng).unwrap();
         let tx = match *tx_type {
             TransactionType::Withdrawal => {

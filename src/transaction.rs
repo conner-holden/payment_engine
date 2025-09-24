@@ -10,6 +10,8 @@ pub struct Transaction {
     // So while I think Decimal is overkill for a toy payment engine,
     // the 4x size would be well worth it for a production payment engine that
     // demands 100% accuracy.
+    // AI: asked ChatGPT recommendations on a good data structure for floats with
+    // 4 decimal places of precision.
     pub amount: Option<Decimal>,
     #[serde(rename = "tx")]
     pub id: u32,
