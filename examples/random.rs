@@ -1,12 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use payment_engine::prelude::*;
-use polars::prelude::*;
 use rand::{
     Rng as _,
     seq::{IndexedRandom, IteratorRandom},
 };
-use rust_decimal::{Decimal, dec};
+use rust_decimal::Decimal;
 use strum::IntoEnumIterator as _;
 
 const DECIMALS: u32 = 4;
@@ -29,9 +28,10 @@ fn main() {
     for i in MIN_TX..rng.random_range(MIN_TX..=MAX_TX) {
         let tx_type = tx_types.choose(&mut rng).unwrap();
         match *tx_type {
-            TransactionType::Withdrawl => {
+            TransactionType::Withdrawal => {
+                let amount = Decimal::new(rng.random_range(MIN_AMOUNT..=0), DECIMALS);
                 let tx = Transaction {
-                    amount: Some(Decimal::new(rng.random_range(MIN_AMOUNT..=0), DECIMALS)),
+                    amount: Some(amount),
                     // Transaction IDs are not necessarily ordered, so let's
                     // use the index for simplicity
                     id: i as u32,
@@ -40,16 +40,25 @@ fn main() {
                 };
                 simple_txs.insert(tx.id, tx);
                 all_txs.push(tx);
+                balances
+                    .entry(tx.client)
+                    .and_modify(|b| b.withdraw(amount))
+                    .or_default();
             }
             TransactionType::Deposit => {
+                let amount = Decimal::new(rng.random_range(0..=MAX_AMOUNT), DECIMALS);
                 let tx = Transaction {
-                    amount: Some(Decimal::new(rng.random_range(0..=MAX_AMOUNT), DECIMALS)),
+                    amount: Some(amount),
                     id: i as u32,
                     client: rng.random_range(MIN_CLIENTS..=MAX_CLIENTS),
                     ty: *tx_type,
                 };
                 simple_txs.insert(tx.id, tx);
                 all_txs.push(tx);
+                balances
+                    .entry(tx.client)
+                    .and_modify(|b| b.deposit(amount))
+                    .or_default();
             }
             TransactionType::Dispute => {
                 let Some(source_tx) = simple_txs.values().choose(&mut rng) else {
@@ -62,20 +71,16 @@ fn main() {
                 };
                 open_dispute_txs.insert(tx.id, tx);
                 all_txs.push(tx);
+                balances
+                    .entry(tx.client)
+                    .and_modify(|b| b.dispute(source_tx.amount.unwrap()))
+                    .or_default();
             }
             TransactionType::Resolution => {
                 let Some(dispute_tx) = open_dispute_txs.values().choose(&mut rng).cloned() else {
                     continue;
                 };
-                let tx = Transaction {
-                    ty: *tx_type,
-                    ..dispute_tx
-                };
-                all_txs.push(tx);
-                open_dispute_txs.remove(&dispute_tx.id);
-            }
-            TransactionType::Chargeback => {
-                let Some(dispute_tx) = open_dispute_txs.values().choose(&mut rng).cloned() else {
+                let Some(source_tx) = simple_txs.get(&dispute_tx.id) else {
                     continue;
                 };
                 let tx = Transaction {
@@ -84,6 +89,28 @@ fn main() {
                 };
                 all_txs.push(tx);
                 open_dispute_txs.remove(&dispute_tx.id);
+                balances
+                    .entry(tx.client)
+                    .and_modify(|b| b.resolve(source_tx.amount.unwrap()))
+                    .or_default();
+            }
+            TransactionType::Chargeback => {
+                let Some(dispute_tx) = open_dispute_txs.values().choose(&mut rng).cloned() else {
+                    continue;
+                };
+                let Some(source_tx) = simple_txs.get(&dispute_tx.id) else {
+                    continue;
+                };
+                let tx = Transaction {
+                    ty: *tx_type,
+                    ..dispute_tx
+                };
+                all_txs.push(tx);
+                open_dispute_txs.remove(&dispute_tx.id);
+                balances
+                    .entry(tx.client)
+                    .and_modify(|b| b.resolve(source_tx.amount.unwrap()))
+                    .or_default();
             }
         };
     }

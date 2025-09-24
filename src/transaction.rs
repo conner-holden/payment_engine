@@ -23,7 +23,7 @@ pub enum TransactionType {
     /// Credit to the client's asset account. Increases available and total funds.
     Deposit,
     /// Debit to the client's asset account. Decreases available and total funds.
-    Withdrawl,
+    Withdrawal,
     /// Client's claim to an erroneous charge. Decreases available, increases held,
     /// and maintains total funds.
     Dispute,

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-polars = { version = "0.51.0", features = ["lazy", "csv"] }
+polars = { version = "0.51.0", default-features = false, features = ["csv"] }
 rust_decimal = "1.38.0"
 strum = { version = "0.27.2", features = ["strum_macros"] }
 strum_macros = "0.27.2"
@@ -14,4 +14,3 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 [dev-dependencies]
 rand = "0.9.2"
-rust_decimal = { version = "1.38.0", features = ["macros"] }
