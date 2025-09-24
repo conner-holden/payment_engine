@@ -2,28 +2,34 @@ use std::{collections::HashMap, env, io, path::PathBuf};
 
 use payment_engine::prelude::*;
 use rust_decimal::Decimal;
-use tracing::error;
 
-fn main() -> PaymentEngineResult<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
-        .with_ansi(false)
-        .init();
+#[derive(thiserror::Error)]
+enum Error {
+    #[error("expected `{0} <path>`")]
+    Usage(String),
+    #[error("{0}")]
+    Csv(String),
+}
 
+impl std::fmt::Debug for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+fn main() -> Result<(), Error> {
     // Since the requirement is for a single argument,
     // no need for clap!
     let args: Vec<String> = env::args().collect();
     // Gracefully handle any extra arguments and flags
     let Some(path) = args.get(1).map(Into::<PathBuf>::into) else {
-        error!("Usage: {} <path>", args[0]);
-        return Err(PaymentEngineError::Usage);
+        return Err(Error::Usage(args[0].clone()));
     };
 
     let mut accounts: HashMap<u16, Balance> = HashMap::new();
     let mut transactions: HashMap<u32, Transaction> = HashMap::new();
 
-    let mut rdr =
-        csv::Reader::from_path(path).map_err(|err| PaymentEngineError::Csv(err.to_string()))?;
+    let mut rdr = csv::Reader::from_path(path).map_err(|err| Error::Csv(err.to_string()))?;
 
     use TransactionType::*;
     for result in rdr.deserialize() {
