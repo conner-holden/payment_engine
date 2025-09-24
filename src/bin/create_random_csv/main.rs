@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 
 use payment_engine::prelude::*;
 use rand::{
@@ -19,15 +19,14 @@ const MAX_AMOUNT: i64 = 10_000 * 10_i64.pow(DECIMALS); // $10,000
 fn main() {
     let mut rng = rand::rng();
     let mut simple_txs: HashMap<u32, Transaction> = HashMap::new();
-    let mut all_txs: Vec<Transaction> = Vec::new();
     let mut open_dispute_txs: HashMap<u32, Transaction> = HashMap::new();
     let tx_types: Vec<TransactionType> = TransactionType::iter().collect();
 
-    let mut balances: HashMap<u16, Balance> = HashMap::new();
+    let mut wtr = csv::Writer::from_writer(io::stdout());
 
     for i in MIN_TX..rng.random_range(MIN_TX..=MAX_TX) {
         let tx_type = tx_types.choose(&mut rng).unwrap();
-        match *tx_type {
+        let tx = match *tx_type {
             TransactionType::Withdrawal => {
                 let amount = Decimal::new(rng.random_range(MIN_AMOUNT..=0), DECIMALS);
                 let tx = Transaction {
@@ -39,11 +38,7 @@ fn main() {
                     ty: *tx_type,
                 };
                 simple_txs.insert(tx.id, tx);
-                all_txs.push(tx);
-                balances
-                    .entry(tx.client)
-                    .and_modify(|b| b.withdraw(amount))
-                    .or_default();
+                tx
             }
             TransactionType::Deposit => {
                 let amount = Decimal::new(rng.random_range(0..=MAX_AMOUNT), DECIMALS);
@@ -54,11 +49,7 @@ fn main() {
                     ty: *tx_type,
                 };
                 simple_txs.insert(tx.id, tx);
-                all_txs.push(tx);
-                balances
-                    .entry(tx.client)
-                    .and_modify(|b| b.deposit(amount))
-                    .or_default();
+                tx
             }
             TransactionType::Dispute => {
                 let Some(source_tx) = simple_txs.values().choose(&mut rng) else {
@@ -70,49 +61,32 @@ fn main() {
                     ..*source_tx
                 };
                 open_dispute_txs.insert(tx.id, tx);
-                all_txs.push(tx);
-                balances
-                    .entry(tx.client)
-                    .and_modify(|b| b.dispute(source_tx.amount.unwrap()))
-                    .or_default();
+                tx
             }
-            TransactionType::Resolution => {
+            TransactionType::Resolve => {
                 let Some(dispute_tx) = open_dispute_txs.values().choose(&mut rng).cloned() else {
-                    continue;
-                };
-                let Some(source_tx) = simple_txs.get(&dispute_tx.id) else {
                     continue;
                 };
                 let tx = Transaction {
                     ty: *tx_type,
                     ..dispute_tx
                 };
-                all_txs.push(tx);
                 open_dispute_txs.remove(&dispute_tx.id);
-                balances
-                    .entry(tx.client)
-                    .and_modify(|b| b.resolve(source_tx.amount.unwrap()))
-                    .or_default();
+                tx
             }
             TransactionType::Chargeback => {
                 let Some(dispute_tx) = open_dispute_txs.values().choose(&mut rng).cloned() else {
                     continue;
                 };
-                let Some(source_tx) = simple_txs.get(&dispute_tx.id) else {
-                    continue;
-                };
                 let tx = Transaction {
                     ty: *tx_type,
                     ..dispute_tx
                 };
-                all_txs.push(tx);
                 open_dispute_txs.remove(&dispute_tx.id);
-                balances
-                    .entry(tx.client)
-                    .and_modify(|b| b.resolve(source_tx.amount.unwrap()))
-                    .or_default();
+                tx
             }
         };
+        wtr.serialize(tx).unwrap();
     }
-    dbg!(balances);
+    wtr.flush().unwrap();
 }

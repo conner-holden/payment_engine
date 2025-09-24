@@ -19,6 +19,7 @@ pub type PaymentEngineResult<T> = std::result::Result<T, PaymentEngineError>;
 
 pub mod prelude {
     pub use crate::{
+        PaymentEngineError, PaymentEngineResult,
         balance::Balance,
         transaction::{Transaction, TransactionType},
     };
