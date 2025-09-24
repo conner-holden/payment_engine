@@ -11,6 +11,7 @@ enum Error {
     Csv(String),
 }
 
+// Forward debug to display for cleaner CLI errors
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self}")
@@ -26,7 +27,7 @@ fn main() -> Result<(), Error> {
         return Err(Error::Usage(args[0].clone()));
     };
 
-    let mut accounts: HashMap<u16, Balance> = HashMap::new();
+    let mut accounts: HashMap<u16, Account> = HashMap::new();
     let mut transactions: HashMap<u32, Transaction> = HashMap::new();
 
     let mut rdr = csv::Reader::from_path(path).map_err(|err| Error::Csv(err.to_string()))?;
@@ -38,9 +39,9 @@ fn main() -> Result<(), Error> {
         };
         accounts
             .entry(transaction.client)
-            .and_modify(|balance| {
-                // Skip locked balances
-                if balance.is_locked {
+            .and_modify(|account| {
+                // Skip locked accounts
+                if account.is_locked {
                     return;
                 }
                 let amount = match transaction.ty {
@@ -48,24 +49,25 @@ fn main() -> Result<(), Error> {
                         transactions.insert(transaction.id, transaction);
                         transaction.amount.unwrap_or(Decimal::ZERO)
                     }
-                    _ => transactions
+                    // Better to be explicit in case new transaction types are added
+                    Dispute | Resolve | Chargeback => transactions
                         .get(&transaction.id)
                         .and_then(|t| t.amount)
                         .unwrap_or(Decimal::ZERO),
                 };
-                // Apply transaction to balance
-                balance.commit(transaction.ty, amount);
-                // Lock balance on charge back
+                // Apply transaction to account
+                account.commit(transaction.ty, amount);
+                // Lock account on charge back
                 if matches!(transaction.ty, Chargeback) {
-                    balance.is_locked = true;
+                    account.is_locked = true;
                 }
             })
-            .or_insert(Balance::new(transaction.client));
+            .or_insert(Account::new(transaction.client));
     }
 
     let mut wtr = csv::Writer::from_writer(io::stdout());
-    for balance in accounts.values() {
-        let _ = wtr.serialize(balance);
+    for account in accounts.values() {
+        let _ = wtr.serialize(account);
     }
     wtr.flush().unwrap();
 

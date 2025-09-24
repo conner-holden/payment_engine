@@ -1,9 +1,9 @@
-pub mod balance;
+pub mod account;
 pub mod transaction;
 
 pub mod prelude {
     pub use crate::{
-        balance::Balance,
+        account::Account,
         transaction::{Transaction, TransactionType},
     };
 }
