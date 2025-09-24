@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, path::PathBuf};
+use std::{collections::HashMap, env, io, path::PathBuf};
 
 use payment_engine::prelude::*;
 use rust_decimal::Decimal;
@@ -33,6 +33,7 @@ fn main() -> PaymentEngineResult<()> {
         accounts
             .entry(transaction.client)
             .and_modify(|balance| {
+                // Skip locked balances
                 if balance.is_locked {
                     return;
                 }
@@ -46,12 +47,21 @@ fn main() -> PaymentEngineResult<()> {
                         .and_then(|t| t.amount)
                         .unwrap_or(Decimal::ZERO),
                 };
+                // Apply transaction to balance
                 balance.commit(transaction.ty, amount);
+                // Lock balance on charge back
+                if matches!(transaction.ty, Chargeback) {
+                    balance.is_locked = true;
+                }
             })
-            .or_default();
+            .or_insert(Balance::new(transaction.client));
     }
 
-    dbg!(accounts);
+    let mut wtr = csv::Writer::from_writer(io::stdout());
+    for balance in accounts.values() {
+        let _ = wtr.serialize(balance);
+    }
+    wtr.flush().unwrap();
 
     Ok(())
 }
