@@ -1,6 +1,8 @@
 use rust_decimal::Decimal;
+use strum_macros::EnumIter;
 
 // Struct fields are ordered to minimize padding
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Transaction {
     // Although f32 works for floats with precision up to four decimal numbers,
     // Decimal is more accurate and well-suited to financial calculations.
@@ -11,12 +13,13 @@ pub struct Transaction {
     // The amount is optional to account for transaction types other than deposits
     // and withdrawls.
     pub amount: Option<Decimal>,
-    pub tx: u32,
+    pub id: u32,
     pub client: u16,
-    pub ty: TranscationType,
+    pub ty: TransactionType,
 }
 
-pub enum TranscationType {
+#[derive(Clone, Copy, Debug, EnumIter, Eq, PartialEq)]
+pub enum TransactionType {
     /// Credit to the client's asset account. Increases available and total funds.
     Deposit,
     /// Debit to the client's asset account. Decreases available and total funds.
